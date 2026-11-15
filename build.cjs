@@ -1,0 +1,27 @@
+const fs = require('fs');
+const source = 'src/game-base.html';
+if (!fs.existsSync(source)) { fs.mkdirSync('src', {recursive:true}); fs.copyFileSync('COSMOLAB_GameOnly.html',source); }
+if (!fs.existsSync('src/legacy_NASA_Base.html')) fs.copyFileSync('COSMOLAB_2_NASA_Base.html','src/legacy_NASA_Base.html');
+let html=fs.readFileSync(source,'utf8');
+html=html.replaceAll("m.eventType === 'malfunction'",'isFault(m.eventType)');
+html=html.replace("? ['Поломка ракеты!', 'Ремонт даёт +4 к проверке. Обходной режим — без бонуса.']", "? [m.eventType === 'fuelLeak' ? tr('Fuel leak!', 'Утечка топлива!') : m.eventType === 'thermal' ? tr('Thermal overload!', 'Перегрев систем!') : tr('Rocket malfunction!', 'Поломка ракеты!'), tr('Repair: +4. Failure damages the hull; a leak also costs 12 fuel.', 'Ремонт: +4. Неудача повреждает корпус; утечка также отнимает 12 топлива.')]");
+html=html.replace('ctx.fillText(actionLabel, b.x, by + br + 9 * ui);',"ctx.fillText(actionLabel + ' +' + eventBonus(b.choice), b.x, by + br + 9 * ui);");
+html=html.replace('  drawCrew(640, 615, t, 0.9);','').replace('  drawCrew(960, 615, t + 2, 0.9);','');
+html=html.replace('  drawPlayer(t);','  drawPlayer(t);\n  drawTeam(t);');
+html=html.replace("  if (action === 'research') { startResearch(); return; }","  if (action === 'research') { openPanel('lab'); return; }");
+html=html.replace("  if (action === 'build') { startBuild(); return; }","  if (action === 'build') { openPanel('builder'); return; }");
+html=html.replace("  if (action === 'launch') { tryLaunch(); return; }","  if (action === 'launch') { openPanel('launch'); return; }");
+html=html.replace("  const k = e.key.toLowerCase();","  if (e.target.closest('input,select,textarea,dialog') || !desk.hidden) return;\n  const k = e.key.toLowerCase();");
+html=html.replace('Math.min(window.devicePixelRatio || 1, 2)','Math.min(window.devicePixelRatio || 1, 1.5)');
+html=html.replace('  const dt = Math.min(52, now - lastFrame);',"  if (document.hidden || (lastFrame && now-lastFrame < 1000/(ext.quality === 'eco' ? 30 : 60)-1)) { requestAnimationFrame(frame); return; }\n  const dt = Math.min(100, now - lastFrame);");
+html=html.replace('  updateHud();\n  refreshTimePanel();',"  updateTeam(dt);\n  if (now-lastHud > 180) { updateHud(); refreshTimePanel(); lastHud=now; }");
+html=html.replace('    updatePlayer(dt);','    if (desk.hidden) updatePlayer(dt);');
+html=html.replace('  state.now += dt * state.timeScale;', '  state.now += dt * state.timeScale;');
+const expansion=fs.readFileSync('src/expansion.js','utf8').replace('// TRANSLATIONS',fs.readFileSync('src/translations.js','utf8'))+'\n'+fs.readFileSync('src/surface.js','utf8');
+html=html.replace('initDust();\nbuildGrid();',expansion+'\ninitDust();\nbuildGrid();');
+if(!html.includes('const ext =')) throw Error('Insertion failed');
+html=html.replace('</style>',fs.readFileSync('src/expansion.css','utf8')+'\n'+fs.readFileSync('src/surface.css','utf8')+'\n</style>');
+html=html.replace('<script>',fs.readFileSync('src/expansion.html','utf8')+'\n<script>');
+fs.writeFileSync('COSMOLAB_GameOnly.html',html);
+fs.writeFileSync('COSMOLAB_2_NASA_Base.html',html);
+console.log('Built standalone COSMOLAB_GameOnly.html');
