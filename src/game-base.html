@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#040a14">
+<meta name="description" content="COSMOLAB — космическая база NASA. Космическая игра о проектировании миссии и управлении ресурсами.">
+<title>COSMOLAB</title>
+<style>
+:root{
+  --glass1:rgba(19,37,60,.93);
+  --glass2:rgba(5,14,28,.9);
+  --line:rgba(126,190,231,.3);
+  --gold:#ffd46b;
+  --gold2:#ffb42e;
+  --ice:#eaf9ff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#02060f}
+body{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ice);
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+#game{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  background:#02060f;
+  touch-action:none;
+  cursor:default;
+  opacity:0;
+  animation:reveal 1.05s ease .08s forwards;
+}
+@keyframes reveal{to{opacity:1}}
+
+/* soft readability gradient at the top edge */
+.edge{
+  position:fixed;
+  left:0;right:0;top:0;
+  height:108px;
+  z-index:5;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(1,5,12,.62),rgba(1,5,12,0));
+}
+
+/* the entire visible interface: day counter + money */
+.hud{
+  position:fixed;
+  top:max(14px,env(safe-area-inset-top));
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  z-index:10;
+  pointer-events:none;
+}
+.chip{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  height:47px;
+  padding:0 18px 0 12px;
+  border-radius:999px;
+  background:linear-gradient(180deg,var(--glass1),var(--glass2));
+  border:1px solid var(--line);
+  box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08),inset 0 -12px 24px rgba(0,0,0,.2);
+  backdrop-filter:blur(14px) saturate(1.25);
+  -webkit-backdrop-filter:blur(14px) saturate(1.25);
+  will-change:transform;
+}
+.chip .icon{
+  position:relative;
+  width:24px;
+  height:24px;
+  flex:0 0 24px;
+  display:grid;
+  place-items:center;
+  color:#ffd98a;
+}
+.chip.money .icon{color:var(--gold)}
+.chip svg{
+  position:absolute;
+  inset:0;
+  width:24px;
+  height:24px;
+  display:block;
+  transition:opacity .55s ease,transform .55s ease;
+}
+.chip .sun{opacity:1;transform:none}
+.chip .moon{opacity:0;transform:rotate(-24deg) scale(.65)}
+.chip.day.night .sun{opacity:0;transform:rotate(24deg) scale(.65)}
+.chip.day.night .moon{opacity:1;transform:none}
+.chip.day{pointer-events:auto;cursor:pointer}
+.chip .num{
+  font-size:21px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:.01em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 1px 10px rgba(0,0,0,.55);
+}
+.chip.day .num{color:#ffe3a6;min-width:1.1em;text-align:center}
+.chip.money .num{color:#ffdc82}
+.chip.pop{animation:chipPop .7s cubic-bezier(.2,.8,.2,1)}
+@keyframes chipPop{
+  0%{transform:scale(1)}
+  28%{transform:scale(1.085);box-shadow:0 10px 34px rgba(255,196,84,.28),inset 0 1px 0 rgba(255,255,255,.12)}
+  100%{transform:scale(1)}
+}
+.chip.gain{animation:chipGain .8s ease}
+@keyframes chipGain{
+  0%{border-color:rgba(255,212,107,.35)}
+  30%{border-color:rgba(126,255,202,.8);box-shadow:0 0 34px rgba(87,255,190,.32),0 10px 30px rgba(0,0,0,.5)}
+  100%{border-color:var(--line)}
+}
+.chip.spend{animation:chipSpend .8s ease}
+@keyframes chipSpend{
+  0%{border-color:rgba(255,212,107,.35)}
+  30%{border-color:rgba(255,126,126,.8);box-shadow:0 0 34px rgba(255,88,88,.26),0 10px 30px rgba(0,0,0,.5)}
+  100%{border-color:var(--line)}
+}
+
+.sr{
+  position:fixed;
+  width:1px;height:1px;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+  white-space:nowrap;
+}
+
+@media(max-width:620px){
+  .hud{top:max(9px,env(safe-area-inset-top));gap:7px}
+  .chip{height:40px;padding:0 13px 0 9px;gap:7px;border-radius:999px}
+  .chip .icon,.chip svg{width:20px;height:20px}
+  .chip .icon{flex-basis:20px}
+  .chip .num{font-size:17px}
+  .edge{height:82px}
+}
+@media(max-width:380px){
+  .chip .num{font-size:16px}
+  .chip{padding:0 11px 0 8px}
+}
+.timeToggle{position:fixed;top:max(14px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));z-index:220;height:44px;padding:0 15px;border:1px solid rgba(126,190,231,.38);border-radius:14px;background:linear-gradient(180deg,rgba(19,37,60,.96),rgba(5,14,28,.94));color:#eaf9ff;font-weight:800;box-shadow:0 8px 26px rgba(0,0,0,.42);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.timeToggle:hover{border-color:rgba(126,231,255,.75);background:rgba(23,52,80,.97)}
+.timePanel{position:fixed;top:calc(max(14px,env(safe-area-inset-top)) + 56px);right:max(16px,env(safe-area-inset-right));z-index:230;width:min(370px,calc(100vw - 24px));max-height:calc(100vh - 90px);overflow:auto;padding:18px;border-radius:20px;border:1px solid rgba(126,190,231,.38);background:linear-gradient(155deg,rgba(17,36,60,.98),rgba(4,12,25,.98));box-shadow:0 20px 70px rgba(0,0,0,.58),inset 0 1px rgba(255,255,255,.07);color:#eaf9ff;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.timePanel[hidden]{display:none}.timePanelHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.timePanelHead h2{font-size:17px}.timePanelHead button,.timePanel button{color:#eaf9ff;border:1px solid rgba(126,190,231,.28);background:rgba(29,58,88,.72);border-radius:10px;padding:9px 11px;font:inherit;font-size:12px;font-weight:700;line-height:1.2}.timePanelHead button{padding:5px 10px;font-size:18px}.timeSummary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.timeStat{border:1px solid rgba(126,190,231,.18);background:rgba(2,10,22,.48);border-radius:11px;padding:10px}.timeStat small{display:block;color:#91b0ca;font-size:10px;margin-bottom:4px}.timeStat strong{font-size:14px}.timeLabel{margin:12px 0 7px;color:#7de7ff;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.timeButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.timeButtons button:hover,.timePanelHead button:hover{border-color:rgba(126,231,255,.68);background:rgba(33,77,112,.9)}.timeButtons button.primary{background:linear-gradient(135deg,#5fe0ff,#59efc2);color:#06202d;border:0}.speedButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.speedButtons button.active{border-color:#5fe0ff;color:#7de7ff;background:rgba(34,93,126,.52)}.timeNote{color:#9eb7cd;font-size:11px;line-height:1.45;margin-top:10px}.jobList{font-size:12px;line-height:1.55;color:#d6e9f8}.jobLine{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid rgba(126,190,231,.13)}.jobLine span:last-child{color:#80e8d2;white-space:nowrap}
+@media(max-width:620px){.timeToggle{top:58px;right:12px;height:38px;padding:0 11px;font-size:11px}.timePanel{top:104px;right:12px}}
+@media(max-width:380px){.timeToggle{top:55px;right:10px}.timePanel{top:99px;right:10px}}
+.startScreen{position:fixed;inset:0;z-index:500;display:grid;place-items:center;padding:22px;background:radial-gradient(ellipse at 50% 42%,rgba(15,48,77,.45),rgba(2,7,17,.84) 72%),linear-gradient(180deg,rgba(2,7,17,.56),rgba(2,7,17,.88));backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);transition:opacity .45s ease,visibility .45s ease}.startScreen[hidden]{display:none}.startCard{width:min(590px,100%);padding:clamp(24px,5vw,42px);border:1px solid rgba(126,190,231,.35);border-radius:28px;background:linear-gradient(155deg,rgba(21,43,70,.96),rgba(5,14,29,.97));box-shadow:0 28px 100px rgba(0,0,0,.6),inset 0 1px rgba(255,255,255,.08);text-align:center}.startRocket{width:76px;height:76px;margin:0 auto 18px;display:grid;place-items:center;border-radius:24px;background:linear-gradient(145deg,#4770bd,#262f6f);font-size:42px;box-shadow:0 10px 38px rgba(77,150,255,.24)}.startKicker{color:#7de7ff;font-size:11px;font-weight:900;letter-spacing:.22em;text-transform:uppercase}.startCard h1{margin:9px 0 10px;font-size:clamp(30px,7vw,48px);line-height:1.04;letter-spacing:-.04em}.startCard h1 span{color:#67e7f4}.startLead{max-width:430px;margin:0 auto;color:#b6c9dc;font-size:15px;line-height:1.6}.startSteps{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:24px 0;text-align:left}.startStep{padding:12px;border:1px solid rgba(126,190,231,.16);border-radius:13px;background:rgba(2,10,22,.38);color:#a9c0d5;font-size:11px;line-height:1.45}.startStep b{display:block;margin-bottom:5px;color:#eaf9ff;font-size:12px}.startButton{width:100%;min-height:54px;border:0;border-radius:15px;background:linear-gradient(110deg,#63ddff,#6ce6c1);color:#06202d;font:inherit;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 10px 28px rgba(82,226,215,.18);transition:transform .18s ease,filter .18s ease}.startButton:hover{transform:translateY(-2px);filter:brightness(1.07)}.startFoot{margin-top:13px;color:#7792ad;font-size:11px}
+.actionHint{position:fixed;z-index:180;max-width:min(270px,calc(100vw - 24px));padding:10px 13px;border:1px solid rgba(126,231,255,.45);border-radius:13px;background:rgba(5,15,30,.96);color:#eaf9ff;box-shadow:0 12px 32px rgba(0,0,0,.48);pointer-events:none;opacity:0;transform:translateY(5px);transition:opacity .12s ease,transform .12s ease;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.actionHint.visible{opacity:1;transform:translateY(0)}.actionHint strong{display:block;margin-bottom:3px;color:#7de7ff;font-size:12px}.actionHint span{display:block;color:#c1d3e4;font-size:11px;line-height:1.4}
+@media(max-width:520px){.startCard{border-radius:22px}.startSteps{grid-template-columns:1fr;gap:7px;margin:18px 0}.startStep{padding:9px 11px}.startStep b{display:inline;margin:0 6px 0 0}.startRocket{width:62px;height:62px;font-size:34px;border-radius:20px}}
+</style>
+</head>
+<body>
+<div class="startScreen" id="startScreen" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div class="startCard">
+    <div class="startRocket" aria-hidden="true">🚀</div>
+    <p class="startKicker">Учебная космическая лаборатория</p>
+    <h1 id="startTitle">COSMOLAB <span>/</span> Mission Architect</h1>
+    <p class="startLead">Собери аппарат, уложись в ограничения и отправь научную миссию к выбранной цели.</p><p class="startFoot">Бюджет · масса · топливо · научные приборы</p>
+    <div class="startSteps">
+      <div class="startStep"><b>🧪 Наука</b>Изучай технологии для миссии.</div>
+      <div class="startStep"><b>📦 Склад</b>Заказывай материалы для ракеты.</div>
+      <div class="startStep"><b>🛠 Проект</b>Собери аппарат и выбери цель.</div>
+    </div>
+    <button class="startButton" id="startButton" type="button">Начать игру <span aria-hidden="true">→</span></button>
+    <p class="startFoot">Кликни по значку на базе, чтобы узнать, что он делает.</p>
+  </div>
+</div>
+<div class="actionHint" id="actionHint" role="status" aria-live="polite"><strong></strong><span></span></div>
+<canvas id="game" aria-label="Космическая база NASA: научная лаборатория, склад, проектировочная, командный центр и стартовая площадка"></canvas>
+<div class="edge"></div>
+<div class="hud" id="hud">
+  <div class="chip day" id="dayChip" aria-label="День" title="День кампании — нажми, чтобы открыть календарь и перемотать время">
+    <span class="icon">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4.1" fill="currentColor" stroke="none"/>
+        <path d="M12 1.8v2.6M12 19.6v2.6M1.8 12h2.6M19.6 12h2.6M4.7 4.7l1.9 1.9M17.4 17.4l1.9 1.9M19.3 4.7l-1.9 1.9M6.6 17.4l-1.9 1.9"/>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.4 14.7A8.7 8.7 0 1 1 9.3 3.6a7 7 0 0 0 11.1 11.1Z"/>
+      </svg>
+    </span>
+    <span class="num" id="dayValue">1</span>
+  </div>
+  <div class="chip money" id="moneyChip" aria-label="Деньги" title="Бюджет миссии: оплата исследований, поставок и сборки">
+    <span class="icon">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9.1" fill="#7e5721" opacity=".5"/>
+        <circle cx="12" cy="12" r="8.3" fill="#ffd466" stroke="#9d6c24" stroke-width="1.2"/>
+        <circle cx="12" cy="12" r="5.5" fill="none" stroke="#b07a26" stroke-width="1"/>
+        <path d="M12 7.6l1.26 2.6 2.87.4-2.08 2.02.5 2.86L12 14.12l-2.55 1.36.5-2.86-2.08-2.02 2.87-.4z" fill="#9d6c24"/>
+      </svg>
+    </span>
+    <span class="num" id="moneyValue">240 000</span>
+  </div>
+</div>
+<button class="timeToggle" id="timeToggle" type="button" aria-expanded="false" aria-controls="timePanel">⏱ Пульт времени</button>
+<section class="timePanel" id="timePanel" role="dialog" aria-modal="false" aria-labelledby="timePanelTitle" hidden>
+  <div class="timePanelHead"><h2 id="timePanelTitle">Управление базой</h2><button id="timePanelClose" type="button" aria-label="Закрыть">×</button></div>
+  <div class="timeSummary"><div class="timeStat"><small>КАМПАНИЯ</small><strong id="panelDay">День 1</strong></div><div class="timeStat"><small>ФАЗА СУТОК</small><strong id="panelPhase">День</strong></div><div class="timeStat"><small>БЮДЖЕТ БАЗЫ</small><strong id="panelMoney">240 000</strong></div><div class="timeStat"><small>РАКЕТА</small><strong id="panelRocket">Не готова</strong></div></div>
+  <div class="timeLabel">Перемотка календаря</div><div class="timeButtons"><button class="primary" data-skip-days="1" type="button">+1 день</button><button data-skip-days="3" type="button">+3 дня</button><button data-skip-days="7" type="button">+7 дней</button></div>
+  <div class="timeLabel">Скорость времени</div><div class="speedButtons"><button data-speed="1" type="button">1×</button><button data-speed="10" type="button">10×</button><button data-speed="60" type="button">60×</button></div>
+  <div class="timeLabel">Очередь работ</div><div class="jobList" id="panelJobs">Новых работ нет.</div>
+  <p class="timeNote" id="timeNote">Пропуск дня начисляет ежедневный доход и продвигает исследования, поставки и сборку ракеты.</p>
+</section>
+<div class="sr" id="sr" aria-live="polite"></div>
+<script>
+(() => {
+'use strict';
+/* ============================================================
+   COSMOLAB — game-only edition
+   Canvas-first edition with compact controls; days can be fast-forwarded.
+   Day and night still run automatically between calendar skips.
+   ============================================================ */
+
+const $ = id => document.getElementById(id);
+const canvas = $('game');
+const ctx = canvas.getContext('2d', { alpha: false });
+const DAY_CHIP = $('dayChip');
+const DAY_VALUE = $('dayValue');
+const MONEY_CHIP = $('moneyChip');
+const MONEY_VALUE = $('moneyValue');
+const SR = $('sr');
+const TIME_PANEL = $('timePanel');
+const TIME_TOGGLE = $('timeToggle');
+const TIME_NOTE = $('timeNote');
+const START_SCREEN = $('startScreen');
+const START_BUTTON = $('startButton');
+const ACTION_HINT = $('actionHint');
+let gameStarted = false;
+let hintTimer = 0;
+
+const TAU = Math.PI * 2;
+const WORLD_W = 1600;
+const WORLD_H = 900;
+const CYCLE_MS = 240000;          // 2 min day + 2 min night
+const CYCLE_DAYS = 1;
+const DAY_MS = CYCLE_MS / 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+const rnd = (a, b) => a + Math.random() * (b - a);
+const qp = new URLSearchParams(location.search);
+const qnum = (key, def) => {
+  const raw = qp.get(key);
+  if (raw === null || raw.trim() === '') return def;
+  const v = Number(raw);
+  return Number.isFinite(v) ? v : def;
+};
+const fmt = n => Math.round(n).toLocaleString('ru-RU').replace(/\u00A0/g, ' ');
+
+let DPR = 1;
+let VW = 0, VH = 0;
+
+const state = {
+  now: 0,
+  cycle: clamp(qnum('cycle', 0.018), 0, 0.9999),
+  day: Math.max(1, Math.round(qnum('day', 1))),
+  money: Math.max(0, Math.round(qnum('money', 240000))),
+  shownMoney: 0,
+  tech: clamp(Math.round(qnum('tech', 0)), 0, 3),
+  crates: Math.max(0, Math.round(qnum('crates', 0))),
+  rocket: qp.get('rocket') === '1',
+  target: ['earth', 'moon', 'mars'].includes(qp.get('target')) ? qp.get('target') : 'earth',
+  jobs: { research: null, delivery: null, build: null },
+  mode: 'base',
+  mission: null,
+  hover: null,
+  recommended: null,
+  daylight: 1,
+  warm: 0,
+  isNight: false,
+  flash: 0,
+  flashColor: '#eaf9ff',
+  shake: 0,
+  timeScale: clamp(qnum('speed', 1), 1, 120),
+  dayPulse: 0,
+  focusPad: false,
+  particles: [],
+  dust: [],
+  intro: 1.4,
+  guideTimer: 0,
+  guidePath: [],
+  lastRecommended: null,
+  lastDay: Math.max(1, Math.round(qnum('day', 1))),
+};
+state.shownMoney = state.money;
+const MONEY0 = state.money;
+
+/* ------------------------------------------------------------------ */
+/*  day / night                                                        */
+/* ------------------------------------------------------------------ */
+
+function daylightAt(cycle) {
+  if (cycle < 0.5) {
+    const t = cycle / 0.5;
+    return smooth(t / 0.07) * (1 - smooth((t - 0.9) / 0.1));
+  }
+  const t = (cycle - 0.5) / 0.5;
+  return 0.055 * smooth(t / 0.09) * (1 - smooth((t - 0.9) / 0.1));
+}
+
+function warmAt(cycle) {
+  const d0 = Math.min(cycle, 1 - cycle);
+  const nearDawn = 1 - smooth(d0 / 0.09);
+  const nearDusk = 1 - smooth(Math.abs(cycle - 0.5) / 0.09);
+  return Math.max(nearDawn, nearDusk);
+}
+
+function dailyIncome() {
+  return 12000 + state.tech * 3000;
+}
+
+function newDay() {
+  state.day++;
+  state.dayPulse = 1;
+  gainMoney(dailyIncome(), null, true);
+  DAY_VALUE.textContent = state.day;
+  pulseChip(DAY_CHIP);
+  SR.textContent = 'День ' + state.day;
+  spawnBurst(player.x, player.y - 34, '#ffd46b', 22, 'spark', 0.9);
+}
+
+function updateCycle(dt) {
+  state.cycle += (dt * state.timeScale) / CYCLE_MS;
+  if (state.cycle >= 1) {
+    state.cycle -= 1;
+    newDay();
+  }
+  state.daylight = daylightAt(state.cycle);
+  state.warm = warmAt(state.cycle);
+  const night = state.cycle >= 0.5;
+  if (night !== state.isNight) {
+    state.isNight = night;
+    DAY_CHIP.classList.toggle('night', night);
+    SR.textContent = (night ? 'Ночь' : 'День') + ' ' + state.day;
+  }
+}
+
+function skipDays(count) {
+  if (state.mode !== 'base') {
+    TIME_NOTE.textContent = 'Перемотка доступна, когда команда находится на базе.';
+    return;
+  }
+  const n = clamp(Math.round(count), 1, 30);
+  for (let i = 0; i < n; i++) {
+    state.now += CYCLE_MS;
+    newDay();
+    updateJobs();
+  }
+  state.daylight = daylightAt(state.cycle);
+  state.warm = warmAt(state.cycle);
+  const night = state.cycle >= 0.5;
+  state.isNight = night;
+  DAY_CHIP.classList.toggle('night', night);
+  updateHud();
+  TIME_NOTE.textContent = `Пропущено ${n} ${n===1?'сутки':'суток'}. Работы и ежедневный доход обновлены.`;
+  refreshTimePanel();
+  SR.textContent = `Время перемотано на ${n} дней. Сейчас день ${state.day}.`;
+}
+
+function setTimeScale(value) {
+  state.timeScale = clamp(Number(value) || 1, 1, 120);
+  document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('active', Number(b.dataset.speed) === state.timeScale));
+  TIME_NOTE.textContent = state.timeScale === 1 ? 'Обычная скорость: день и ночь длятся по две минуты.' : `Время идёт в ${state.timeScale} раз быстрее. День и ночь сменяются автоматически.`;
+  SR.textContent = 'Скорость времени: ' + state.timeScale + ' икс.';
+}
+
+function refreshTimePanel() {
+  if (TIME_PANEL.hidden) return;
+  $('panelDay').textContent = 'День ' + state.day;
+  $('panelPhase').textContent = state.cycle >= 0.5 ? 'Ночь' : 'День';
+  $('panelMoney').textContent = fmt(state.money);
+  $('panelRocket').textContent = state.rocket ? 'Готова' : state.jobs.build ? 'Собирается' : 'Не готова';
+  const jobs = [
+    ['research', 'Исследование'], ['delivery', 'Доставка'], ['build', 'Сборка ракеты']
+  ].filter(([key]) => state.jobs[key]);
+  const html = jobs.length ? jobs.map(([key, label]) => {
+    const left = Math.max(1, Math.ceil((state.jobs[key].end - state.now) / CYCLE_MS));
+    return `<div class="jobLine"><span>${label}</span><span>ещё ${left} дн.</span></div>`;
+  }).join('') : 'Новых работ нет.';
+  if ($('panelJobs').innerHTML !== html) $('panelJobs').innerHTML = html;
+  document.querySelectorAll('[data-skip-days]').forEach(b => { b.disabled = state.mode !== 'base'; });
+}
+
+function toggleTimePanel(force) {
+  const open = force === undefined ? TIME_PANEL.hidden : !!force;
+  TIME_PANEL.hidden = !open;
+  TIME_TOGGLE.setAttribute('aria-expanded', String(open));
+  if (open) refreshTimePanel();
+}
+
+/* ------------------------------------------------------------------ */
+/*  money                                                              */
+/* ------------------------------------------------------------------ */
+
+let moneyTimer = null;
+function pulseChip(el) {
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
+
+function flashMoney(kind) {
+  MONEY_CHIP.classList.remove('gain', 'spend');
+  void MONEY_CHIP.offsetWidth;
+  MONEY_CHIP.classList.add(kind);
+  clearTimeout(moneyTimer);
+  moneyTimer = setTimeout(() => MONEY_CHIP.classList.remove('gain', 'spend'), 850);
+}
+
+function gainMoney(n, x, silent) {
+  state.money += n;
+  if (silent) {
+    state.shownMoney = state.money;
+  } else {
+    flashMoney('gain');
+    if (Number.isFinite(x)) spawnBurst(x, 515, '#ffd46b', 16, 'coin', 0.85);
+  }
+}
+
+function spendMoney(n, x) {
+  state.money = Math.max(0, state.money - n);
+  state.shownMoney = state.money;
+  MONEY_VALUE.textContent = fmt(state.money);
+  flashMoney('spend');
+  if (Number.isFinite(x)) spawnBurst(x, 515, '#ff8f8f', 9, 'spark', 0.7);
+}
+
+function deny(x, y) {
+  state.shake = 0.32;
+  state.flash = Math.max(state.flash, 0.16);
+  state.flashColor = '#ff5f6e';
+  spawnBurst(x, y, '#ff7a86', 14, 'spark', 0.7);
+}
+
+/* ------------------------------------------------------------------ */
+/*  world geometry                                                     */
+/* ------------------------------------------------------------------ */
+
+const ROOMS = [
+  { id: 'science', x: 120, y: 300, w: 400, h: 400, accent: '#5dd8e7', f1: '#103247', f2: '#081f32' },
+  { id: 'storage', x: 1080, y: 300, w: 400, h: 400, accent: '#ffc46b', f1: '#20303c', f2: '#111f2b' },
+  { id: 'design', x: 590, y: 80, w: 400, h: 340, accent: '#7fb2ff', f1: '#122b48', f2: '#091b31' },
+  { id: 'command', x: 590, y: 470, w: 400, h: 340, accent: '#59e5c2', f1: '#10313c', f2: '#081f2c' },
+];
+
+const CORRIDORS = [
+  { x: 498, y: 490, w: 114, h: 100, dir: 'h' },
+  { x: 968, y: 490, w: 134, h: 100, dir: 'h' },
+  { x: 750, y: 398, w: 80, h: 94, dir: 'v' },
+];
+
+const WALK_RECTS = [];
+for (const r of ROOMS) WALK_RECTS.push({ x: r.x + 22, y: r.y + 22, w: r.w - 44, h: r.h - 44 });
+for (const c of CORRIDORS) WALK_RECTS.push({ x: c.x, y: c.y, w: c.w, h: c.h });
+
+const OBSTACLES = [
+  { x: 150, y: 326, w: 330, h: 45 },      // science back shelf
+  { x: 150, y: 424, w: 205, h: 82 },      // science bench
+  { x: 424, y: 384, w: 58, h: 168 },      // science server rack
+  { x: 1130, y: 344, w: 312, h: 58 },     // storage shelf A
+  { x: 1130, y: 412, w: 312, h: 58 },     // storage shelf B
+  { x: 1178, y: 522, w: 70, h: 66 },      // storage kiosk
+  { x: 710, y: 191, w: 160, h: 158 },     // design hologram table
+  { x: 614, y: 140, w: 62, h: 196 },      // design rack L
+  { x: 914, y: 140, w: 62, h: 196 },      // design rack R
+  { x: 650, y: 695, w: 300, h: 82 },      // command console
+];
+
+const DOORS = [
+  { x: 493, y: 508, w: 32, h: 64, side: 'v' },
+  { x: 585, y: 508, w: 32, h: 64, side: 'v' },
+  { x: 965, y: 508, w: 32, h: 64, side: 'v' },
+  { x: 1075, y: 508, w: 32, h: 64, side: 'v' },
+  { x: 766, y: 393, w: 68, h: 32, side: 'h' },
+  { x: 766, y: 465, w: 68, h: 32, side: 'h' },
+];
+
+const LAMPS = [
+  { x: 250, y: 390, r: 160, c: '#9fe9ff', a: 0.5 },
+  { x: 250, y: 620, r: 150, c: '#9fe9ff', a: 0.38 },
+  { x: 1280, y: 390, r: 170, c: '#ffcf8c', a: 0.48 },
+  { x: 1280, y: 620, r: 160, c: '#ffcf8c', a: 0.38 },
+  { x: 790, y: 165, r: 180, c: '#a8c7ff', a: 0.46 },
+  { x: 790, y: 340, r: 170, c: '#a8c7ff', a: 0.35 },
+  { x: 800, y: 560, r: 190, c: '#8cffe0', a: 0.42 },
+  { x: 800, y: 750, r: 150, c: '#8cffe0', a: 0.32 },
+  { x: 555, y: 540, r: 110, c: '#bfe9ff', a: 0.32 },
+  { x: 1035, y: 540, r: 110, c: '#bfe9ff', a: 0.32 },
+  { x: 790, y: 445, r: 105, c: '#bfe9ff', a: 0.3 },
+];
+
+const STATIONS = {
+  lab: { x: 252, y: 463, bx: 252, by: 392, approach: { x: 388, y: 470 }, r: 132, icon: 'flask', accent: '#6ee7ff' },
+  supply: { x: 1213, y: 556, bx: 1213, by: 482, approach: { x: 1213, y: 632 }, r: 132, icon: 'box', accent: '#ffc46b' },
+  design: { x: 790, y: 270, bx: 790, by: 368, approach: { x: 790, y: 386 }, r: 148, icon: 'wrench', accent: '#8dbbff' },
+  launch: { x: 930, y: 650, bx: 930, by: 646, approach: { x: 900, y: 686 }, r: 120, icon: 'rocket', accent: '#ffd46b' },
+};
+
+const PLANETS = {
+  earth: { x: 690, y: 588, r: 23, color: '#4fc3f7', dark: '#17618f', land: '#65d6a0', reward: 90000, risk: 8, name: 'Земля', pips: 1 },
+  moon:  { x: 790, y: 582, r: 21, color: '#d6dbe4', dark: '#6f7a8b', land: '#9aa5b4', reward: 155000, risk: 12, name: 'Луна', pips: 2 },
+  mars:  { x: 890, y: 588, r: 23, color: '#f08a5f', dark: '#8d3e2d', land: '#b95038', reward: 235000, risk: 15, name: 'Марс', pips: 3 },
+};
+const PLANET_KEYS = ['earth', 'moon', 'mars'];
+
+const PAD = { x: 1322, y: 208 };
+
+/* ------------------------------------------------------------------ */
+/*  path finding                                                       */
+/* ------------------------------------------------------------------ */
+
+const GRID = 20;
+const GCOLS = Math.ceil(WORLD_W / GRID);
+const GROWS = Math.ceil(WORLD_H / GRID);
+const gridWalk = new Uint8Array(GCOLS * GROWS);
+
+function inRect(x, y, r, m = 0) {
+  return x >= r.x + m && x <= r.x + r.w - m && y >= r.y + m && y <= r.y + r.h - m;
+}
+
+function isWalkablePoint(x, y) {
+  let inside = false;
+  for (const r of WALK_RECTS) {
+    if (inRect(x, y, r, 0)) { inside = true; break; }
+  }
+  if (!inside) return false;
+  for (const o of OBSTACLES) {
+    if (inRect(x, y, o, -3)) return false;
+  }
+  return true;
+}
+
+function canStand(x, y, radius) {
+  if (!isWalkablePoint(x, y)) return false;
+  for (let i = 0; i < 8; i++) {
+    const a = i * TAU / 8;
+    if (!isWalkablePoint(x + Math.cos(a) * radius, y + Math.sin(a) * radius)) return false;
+  }
+  return true;
+}
+
+function buildGrid() {
+  for (let gy = 0; gy < GROWS; gy++) {
+    for (let gx = 0; gx < GCOLS; gx++) {
+      gridWalk[gy * GCOLS + gx] = canStand(gx * GRID + GRID / 2, gy * GRID + GRID / 2, 9) ? 1 : 0;
+    }
+  }
+}
+
+function nearestCell(x, y) {
+  const cx = clamp(Math.floor(x / GRID), 0, GCOLS - 1);
+  const cy = clamp(Math.floor(y / GRID), 0, GROWS - 1);
+  if (gridWalk[cy * GCOLS + cx]) return { cx, cy };
+  for (let r = 1; r <= 6; r++) {
+    let best = null, bd = 1e9;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= GCOLS || ny >= GROWS) continue;
+        if (!gridWalk[ny * GCOLS + nx]) continue;
+        const px = nx * GRID + GRID / 2, py = ny * GRID + GRID / 2;
+        const d = (px - x) ** 2 + (py - y) ** 2;
+        if (d < bd) { bd = d; best = { cx: nx, cy: ny }; }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+function lineClear(ax, ay, bx, by) {
+  const d = Math.hypot(bx - ax, by - ay);
+  const steps = Math.max(1, Math.ceil(d / 9));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    if (!canStand(lerp(ax, bx, t), lerp(ay, by, t), 8)) return false;
+  }
+  return true;
+}
+
+function simplifyPath(points) {
+  if (points.length <= 2) return points;
+  const out = [points[0]];
+  let i = 0;
+  while (i < points.length - 1) {
+    let j = points.length - 1;
+    while (j > i + 1 && !lineClear(points[i].x, points[i].y, points[j].x, points[j].y)) j--;
+    out.push(points[j]);
+    i = j;
+  }
+  return out;
+}
+
+function findPath(sx, sy, tx, ty) {
+  if (!canStand(tx, ty, 8)) {
+    const n = nearestCell(tx, ty);
+    if (!n) return [];
+    tx = n.cx * GRID + GRID / 2;
+    ty = n.cy * GRID + GRID / 2;
+  }
+  const start = nearestCell(sx, sy);
+  const goal = nearestCell(tx, ty);
+  if (!start || !goal) return [];
+
+  const n = GCOLS * GROWS;
+  const g = new Float32Array(n);
+  const f = new Float32Array(n);
+  const came = new Int32Array(n);
+  const open = [];
+  const inOpen = new Uint8Array(n);
+  const closed = new Uint8Array(n);
+  g.fill(1e9); f.fill(1e9); came.fill(-1);
+
+  const si = start.cy * GCOLS + start.cx;
+  const gi = goal.cy * GCOLS + goal.cx;
+  g[si] = 0;
+  f[si] = Math.hypot(goal.cx - start.cx, goal.cy - start.cy);
+  open.push(si);
+  inOpen[si] = 1;
+
+  let found = false;
+  let guard = 0;
+  while (open.length && guard++ < 20000) {
+    let bestAt = 0;
+    for (let i = 1; i < open.length; i++) if (f[open[i]] < f[open[bestAt]]) bestAt = i;
+    const cur = open.splice(bestAt, 1)[0];
+    inOpen[cur] = 0;
+    if (cur === gi) { found = true; break; }
+    closed[cur] = 1;
+    const cx = cur % GCOLS, cy = (cur / GCOLS) | 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= GCOLS || ny >= GROWS) continue;
+        const ni = ny * GCOLS + nx;
+        if (!gridWalk[ni] || closed[ni]) continue;
+        if (dx && dy) {
+          if (!gridWalk[cy * GCOLS + nx] || !gridWalk[ny * GCOLS + cx]) continue;
+        }
+        const cost = (dx && dy) ? 1.4142 : 1;
+        const ng = g[cur] + cost;
+        if (ng < g[ni]) {
+          g[ni] = ng;
+          f[ni] = ng + Math.hypot(goal.cx - nx, goal.cy - ny);
+          came[ni] = cur;
+          if (!inOpen[ni]) { open.push(ni); inOpen[ni] = 1; }
+        }
+      }
+    }
+  }
+  if (!found) return [];
+
+  const cells = [];
+  let at = gi;
+  while (at !== -1) {
+    cells.push({ x: (at % GCOLS) * GRID + GRID / 2, y: ((at / GCOLS) | 0) * GRID + GRID / 2 });
+    at = came[at];
+    if (cells.length > n) break;
+  }
+  cells.reverse();
+  if (canStand(tx, ty, 7)) cells.push({ x: tx, y: ty });
+  const simplified = simplifyPath(cells);
+  if (simplified.length && Math.hypot(simplified[0].x - sx, simplified[0].y - sy) < 16) simplified.shift();
+  return simplified;
+}
+
+/* ------------------------------------------------------------------ */
+/*  player                                                             */
+/* ------------------------------------------------------------------ */
+
+const player = {
+  x: 800,
+  y: 654,
+  path: [],
+  arrival: null,
+  walk: 0,
+  facing: -Math.PI / 2,
+  moving: false,
+  atStation: null,
+};
+
+const keys = Object.create(null);
+
+function approachOf(action) {
+  if (action.startsWith('select:')) return { x: 800, y: 660, r: 150 };
+  if (action === 'launch') return { x: STATIONS.launch.approach.x, y: STATIONS.launch.approach.y, r: 132 };
+  if (action === 'research') return { x: STATIONS.lab.approach.x, y: STATIONS.lab.approach.y, r: STATIONS.lab.r };
+  if (action === 'supply') return { x: STATIONS.supply.approach.x, y: STATIONS.supply.approach.y, r: STATIONS.supply.r };
+  if (action === 'build') return { x: STATIONS.design.approach.x, y: STATIONS.design.approach.y, r: STATIONS.design.r };
+  return null;
+}
+
+function nearAction(action) {
+  const a = approachOf(action);
+  if (!a) return false;
+  return Math.hypot(player.x - a.x, player.y - a.y) < (a.r || 120);
+}
+
+function queueAction(action, wx, wy) {
+  state.hover = action;
+  const a = approachOf(action);
+  if (!a) return;
+  if (nearAction(action)) {
+    player.path = [];
+    player.arrival = null;
+    doAction(action);
+    return;
+  }
+  const path = findPath(player.x, player.y, a.x, a.y);
+  if (path.length) {
+    player.path = path;
+    player.arrival = action;
+  } else {
+    deny(wx, wy);
+  }
+}
+
+function updatePlayer(dt) {
+  const sec = dt / 1000;
+  let moved = false;
+
+  let kx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+  let ky = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
+  if (kx || ky) {
+    player.path = [];
+    player.arrival = null;
+    const l = Math.hypot(kx, ky);
+    kx /= l; ky /= l;
+    const step = 205 * sec;
+    const nx = player.x + kx * step;
+    const ny = player.y + ky * step;
+    if (canStand(nx, player.y, 10)) { player.x = nx; moved = true; }
+    if (canStand(player.x, ny, 10)) { player.y = ny; moved = true; }
+    player.facing = Math.atan2(ky, kx);
+  } else if (player.path.length) {
+    const p = player.path[0];
+    const dx = p.x - player.x, dy = p.y - player.y;
+    const dist = Math.hypot(dx, dy);
+    const step = 205 * sec;
+    if (dist <= step + 0.5) {
+      player.x = p.x;
+      player.y = p.y;
+      player.path.shift();
+      if (!player.path.length && player.arrival) {
+        const action = player.arrival;
+        player.arrival = null;
+        doAction(action);
+      }
+    } else {
+      const nx = player.x + dx / dist * step;
+      const ny = player.y + dy / dist * step;
+      if (canStand(nx, player.y, 10)) player.x = nx;
+      if (canStand(player.x, ny, 10)) player.y = ny;
+      player.facing = Math.atan2(dy, dx);
+      moved = true;
+    }
+  }
+
+  player.moving = moved;
+  if (moved) player.walk += sec * 9.2;
+  else player.walk += sec * 1.4;
+
+  const nearest = nearestActionable();
+  player.atStation = nearest ? nearest.action : null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  particles                                                          */
+/* ------------------------------------------------------------------ */
+
+function spawnBurst(x, y, color, count, kind, strength) {
+  strength = strength || 1;
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * TAU;
+    const sp = rnd(35, 145) * strength;
+    state.particles.push({
+      x, y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - rnd(15, 70) * strength,
+      life: rnd(0.45, 1.1),
+      max: 1.1,
+      size: kind === 'coin' ? rnd(3.2, 5.6) : rnd(1.3, 3.2),
+      color,
+      kind,
+      spin: rnd(-6, 6),
+      rot: Math.random() * TAU,
+    });
+  }
+}
+
+function spawnSmoke(x, y, n, color) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * TAU;
+    state.particles.push({
+      x: x + rnd(-14, 14),
+      y: y + rnd(-8, 8),
+      vx: Math.cos(a) * rnd(4, 40),
+      vy: Math.sin(a) * rnd(3, 26) - 6,
+      life: rnd(0.6, 1.7),
+      max: 1.7,
+      size: rnd(7, 19),
+      color: color || '#9fb8c9',
+      kind: 'smoke',
+      spin: 0,
+      rot: 0,
+    });
+  }
+}
+
+function updateParticles(dt) {
+  const sec = dt / 1000;
+  for (const p of state.particles) {
+    p.life -= sec;
+    p.x += p.vx * sec;
+    p.y += p.vy * sec;
+    p.vy += (p.kind === 'coin' ? 50 : 16) * sec;
+    p.vx *= 0.995;
+    p.vy *= 0.995;
+    p.rot += p.spin * sec;
+    if (p.kind === 'smoke') p.size += 12 * sec;
+  }
+  state.particles = state.particles.filter(p => p.life > 0);
+  if (state.particles.length > 420) state.particles.splice(0, state.particles.length - 420);
+}
+
+function initDust() {
+  state.dust = [];
+  for (let i = 0; i < 70; i++) {
+    state.dust.push({
+      x: Math.random() * WORLD_W,
+      y: Math.random() * WORLD_H,
+      r: rnd(0.5, 1.7),
+      a: rnd(0.06, 0.24),
+      sp: rnd(0.5, 2.2),
+      ph: Math.random() * TAU,
+    });
+  }
+}
+/* ------------------------------------------------------------------ */
+/*  actions, jobs and economy                                          */
+/* ------------------------------------------------------------------ */
+
+function busyFeedback(x, y, color) {
+  spawnBurst(x, y, color || '#8fd8ff', 8, 'spark', 0.55);
+}
+
+function startJob(type, cycles) {
+  state.jobs[type] = {
+    start: state.now,
+    end: state.now + cycles * CYCLE_MS,
+    dur: cycles * CYCLE_MS,
+  };
+}
+
+function jobProgress(job) {
+  if (!job) return 0;
+  return clamp((state.now - job.start) / (job.end - job.start), 0, 1);
+}
+
+function completeJob(type) {
+  const s = STATIONS;
+  if (type === 'research') {
+    state.tech++;
+    spawnBurst(s.lab.bx, s.lab.by, '#7ef0ff', 26, 'spark', 1.1);
+    state.flash = Math.max(state.flash, 0.12);
+    state.flashColor = '#a8f6ff';
+    SR.textContent = 'Исследование завершено. Уровень технологии ' + state.tech + ' из 3.';
+  }
+  if (type === 'delivery') {
+    state.crates += 3;
+    spawnBurst(s.supply.bx, s.supply.by, '#ffd46b', 26, 'coin', 1.1);
+    SR.textContent = 'Доставка прибыла. На складе ' + state.crates + ' контейнеров.';
+  }
+  if (type === 'build') {
+    state.rocket = true;
+    spawnBurst(PAD.x, PAD.y - 60, '#bff7ff', 40, 'spark', 1.5);
+    spawnSmoke(PAD.x, PAD.y + 60, 22, '#a8c6d8');
+    state.flash = Math.max(state.flash, 0.18);
+    state.flashColor = '#dff9ff';
+    state.focusPad = true;
+    setTimeout(() => { state.focusPad = false; }, 2600);
+    SR.textContent = 'Ракета собрана. Можно запускать миссию.';
+  }
+}
+
+function updateJobs() {
+  for (const type of ['research', 'delivery', 'build']) {
+    const job = state.jobs[type];
+    if (job && state.now >= job.end) {
+      state.jobs[type] = null;
+      completeJob(type);
+    }
+  }
+}
+
+function canAfford(cost) {
+  return state.money >= cost;
+}
+
+function startResearch() {
+  const x = STATIONS.lab.bx, y = STATIONS.lab.by;
+  if (state.jobs.research) { busyFeedback(x, y, '#6ee7ff'); return; }
+  if (state.tech >= 3) { busyFeedback(x, y, '#6ee7ff'); return; }
+  const cost = 45000 + state.tech * 15000;
+  if (!canAfford(cost)) { deny(x, y); flashMoney('spend'); return; }
+  spendMoney(cost, x);
+  startJob('research', 1);
+  spawnBurst(x, y, '#7ef0ff', 18, 'spark', 0.9);
+  SR.textContent = 'Начато исследование. Стоимость ' + fmt(cost) + ' кредитов.';
+}
+
+function orderSupplies() {
+  const x = STATIONS.supply.bx, y = STATIONS.supply.by;
+  if (state.jobs.delivery) { busyFeedback(x, y, '#ffc46b'); return; }
+  const cost = 25000;
+  if (!canAfford(cost)) { deny(x, y); flashMoney('spend'); return; }
+  spendMoney(cost, x);
+  startJob('delivery', 1);
+  spawnBurst(x, y, '#ffd46b', 18, 'coin', 0.9);
+  SR.textContent = 'Заказана партия контейнеров. Доставка через один день.';
+}
+
+function startBuild() {
+  const x = STATIONS.design.bx, y = STATIONS.design.by;
+  if (state.rocket) { busyFeedback(x, y, '#8dbbff'); return; }
+  if (state.jobs.build) { busyFeedback(x, y, '#8dbbff'); return; }
+  const cost = 80000;
+  if (state.crates < 2) {
+    deny(x, y);
+    spawnBurst(STATIONS.supply.bx, STATIONS.supply.by, '#ffd46b', 12, 'spark', 0.7);
+    SR.textContent = 'Недостаточно контейнеров. Закажите доставку на складе.';
+    return;
+  }
+  if (!canAfford(cost)) { deny(x, y); flashMoney('spend'); return; }
+  spendMoney(cost, x);
+  state.crates -= 2;
+  startJob('build', 2);
+  spawnBurst(x, y, '#a8c7ff', 24, 'spark', 1);
+  spawnSmoke(PAD.x, PAD.y + 40, 12, '#9fb8c9');
+  SR.textContent = 'Начата сборка ракеты. Потребуется два дня.';
+}
+
+function cycleTarget(direction) {
+  const i = PLANET_KEYS.indexOf(state.target);
+  const next = PLANET_KEYS[(i + (direction || 1) + PLANET_KEYS.length) % PLANET_KEYS.length];
+  state.target = next;
+  const p = PLANETS[next];
+  spawnBurst(p.x, p.y, p.color, 14, 'spark', 0.7);
+  SR.textContent = 'Выбрана цель: ' + p.name + '.';
+}
+
+function doAction(action) {
+  if (!action) return;
+  if (action === 'research') { startResearch(); return; }
+  if (action === 'supply') { orderSupplies(); return; }
+  if (action === 'build') { startBuild(); return; }
+  if (action === 'launch') { tryLaunch(); return; }
+  if (action === 'cycle') { cycleTarget(1); return; }
+  if (action.startsWith('select:')) {
+    state.target = action.slice(7);
+    const p = PLANETS[state.target];
+    spawnBurst(p.x, p.y, p.color, 16, 'spark', 0.75);
+    SR.textContent = 'Выбрана цель: ' + p.name + '.';
+  }
+}
+
+function nearestActionable() {
+  if (state.mode !== 'base') return null;
+  const list = [];
+  const add = (action, x, y, rad) => {
+    const d = Math.hypot(player.x - x, player.y - y);
+    if (d < rad) list.push({ action, d });
+  };
+  add('research', STATIONS.lab.approach.x, STATIONS.lab.approach.y, 96);
+  add('supply', STATIONS.supply.approach.x, STATIONS.supply.approach.y, 96);
+  add('build', STATIONS.design.approach.x, STATIONS.design.approach.y, 108);
+  add('launch', STATIONS.launch.approach.x, STATIONS.launch.approach.y, 92);
+  if (player.x > 600 && player.x < 980 && player.y > 490 && player.y < 790) {
+    const d = Math.hypot(player.x - 800, player.y - 640);
+    if (d < 190) list.push({ action: 'cycle', d: d + 40 });
+  }
+  list.sort((a, b) => a.d - b.d);
+  return list[0] || null;
+}
+
+function recommendedAction() {
+  if (state.mode !== 'base') return null;
+  if (!state.rocket && !state.jobs.build) {
+    if (state.jobs.delivery) return 'supply';
